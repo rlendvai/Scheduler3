@@ -24,7 +24,8 @@ class Slot:
         self.appointment = None
         self.type = "General"
         self.begin_time = begin_time
-        self.fill(Appointment(Patient(), length, begin_time))
+        if length > 0:
+            self.fill(Appointment(Patient(), length, begin_time))
 
     def fill(self, appointment):
         if self.appointment == None:
@@ -60,7 +61,7 @@ class Slot:
 
 
 class Schedule:
-    def __init__(self, start_time, num_days=3, num_slots=3, duration=30, density_percent=100):
+    def __init__(self, start_time, num_days=3, num_slots=3, duration=30, density_percent=80):
 
         self.start_time = start_time
         self.cal_times = []
@@ -68,10 +69,23 @@ class Schedule:
         # the two loops are used to increment the start time by days and hours, to create the desired schedule
         for i in range(num_days):
             for n in range(num_slots):
-                if random.random() <= density_percent / 100:
                     slot_time = self.start_time.add(days=i)
                     slot_time = slot_time.add(minutes=(n * duration))
-                    self.cal_times.append((slot_time, Slot(slot_time, duration)))
+                    if random.random() <= density_percent / 100:
+                        self.cal_times.append((slot_time, Slot(slot_time, duration)))
+                    else:
+                        self.cal_times.append((slot_time, Slot(slot_time, 0)))
+
+
+
+    def makeQ(self):
+        Q=[x for x in self.cal_times if x[1]!=None]
+        return Q
+
+    def showQ(self):
+        self.show()
+
+
 
     def show(self):
 
@@ -95,16 +109,7 @@ class Schedule:
         return False
 
 
-class Q(Schedule):
-    def __init__(self, schedule):
-        Schedule.__init__(self, schedule.start_time)
-        self.length = 0
 
-    def showQ(self):
-        self.show()
-
-    def respond(self, offer):
-        pass
 
 
 def main():
@@ -135,9 +140,7 @@ def main():
     seek_time = Pendulum(2017, 8, 1, 9, 30, tzinfo='America/New_York')
     S.cancel_appointment(seek_time)
     S.show()
-    waitlist = Q(S)
-    waitlist.showQ()
+    S.showQ()
 
-#testing github 4
 
 main()
