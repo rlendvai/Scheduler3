@@ -48,6 +48,9 @@ class Appointment():
         #print(self.patient, "has been offered", str(appt_slot), counter, "times before...")
         return counter
 
+    def totalOffersReceived(self):
+        return len(self.offers)
+
     def change_time(self,time):
         self.time = time
 
@@ -58,7 +61,7 @@ class Appointment():
 
         print("\n#", len(self.offers)+1, ": Trying ", self.patient.get_name(type="short"), " > ", end="", sep="")
 
-        if (random.random()<.5):
+        if (random.random()<.1):
             print("Ok")
             self.offers.append([copy.deepcopy(apptslot), True])
             return True
@@ -100,6 +103,27 @@ class AppSlot:
 
         if length > 0:
             self.fill(Appointment(Patient(), length, begin_time))
+
+    def __eq__(self, other):
+        if(self.begin_time == other.begin_time and \
+                self.type == other.type and \
+                self.length == other.length):
+            return True
+        else:
+            False
+
+    def __gt__(self, other):
+
+        if(self.begin_time > other.begin_time):
+            return True
+        else:
+            return False
+
+    def time_diff(self, appt_slot):
+        #returns hours difference, rounding down. E.g. 59 minutes is 0 hours diff, 61 min is 2 hours difference
+
+        return self.begin_time.diff(appt_slot.begin_time).in_hours()
+
 
     def __str__(self):
         if self.appointment != None:
@@ -223,13 +247,12 @@ class Schedule:
 
         #print("\nTrying to move", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to", to_time.format("MM/DD HH:mm"))
 
+
         if(self.fill_appointment(to_time, dict(self.cal_times)[from_time].appointment, force=False)):
-            print("\nMoving", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to",
-                  to_time.format("MM/DD HH:mm"))
+            print("\nMoving", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to", to_time.format("MM/DD HH:mm"))
             self.cancel_appointment(from_time)
         else:
-            print("\nCouldn't move", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to",
-                  to_time.format("MM/DD HH:mm"))
+            print("\nCouldn't move", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to",to_time.format("MM/DD HH:mm"))
 
 
 class Offer:
@@ -264,25 +287,43 @@ class Filler:
 
     def reschedule(self):
 
-        if len(self.free_slots())>0 and len(self.filled_slots())>0 and self.free_slots()[0].begin_time < self.getNextSlot().begin_time:
-            free_slot = self.free_slots()[0]
-            free_time = self.free_slots()[0].begin_time
-            original_slot = self.getNextSlot()
-            original_time = original_slot.begin_time
-            offer=Offer(original_slot.appointment, copy.deepcopy(free_slot))
+        target_slot = self.free_slots()[0]
+        next_slot = self.getNextSlot(target_slot)
+        if self.getNextSlot(self.free_slots()[0]) is None:
+            return False
+        if len(self.free_slots())>0 and len(self.filled_slots())>0 and self.free_slots()[0].begin_time < next_slot.begin_time:
+            free_time = target_slot.begin_time
+            original_time = next_slot.begin_time
+            offer=Offer(next_slot, copy.deepcopy(target_slot))
             self.sent_offers.append(offer)
             self.schedule.try_move(original_time, free_time)
 
+    def isEligible(self, slot_with_appt, target_slot, hour_limit=1):
+        #qualified only if slot is later than the first available slot
+        print("Evaluating eligibility for", str(slot_with_appt))
+
+        if slot_with_appt.time_diff(self.free_slots()[0])< hour_limit:
+            print(slot_with_appt.appointment.patient.get_name(), "is not eligible is closer than", hour_limit, "hour(s)")
+            return False
+
+        if slot_with_appt.appointment.seenIt(target_slot):
+            print(slot_with_appt.appointment.patient.get_name(), "is not eligible because it was already rejected")
+
+            return False
+
+        return True
+
     # Find the next eligible slot
 
-    def getNextSlot(self):
-        first_free_slot = self.free_slots()[0]
+    def getNextSlot(self, target_slot):
         candidate_slot = None
-        min_times_seen = None
+        min_offers_received = None
         for slot in reversed(self.filled_slots()):
-            if min_times_seen is None or slot.appointment.seenIt(first_free_slot) < min_times_seen:
-                min_times_seen = slot.appointment.seenIt(first_free_slot)
+            if not(self.isEligible(slot, target_slot, 1)): continue
+            if min_offers_received is None or slot.appointment.totalOffersReceived() < min_offers_received:
+                min_offers_received = slot.appointment.totalOffersReceived()
                 candidate_slot = slot
+                print("candidate is", candidate_slot.appointment.patient.get_name(), "seen", min_offers_received, "offers")
         return candidate_slot
 
 def diff(old_schedule, new_schedule):
@@ -319,7 +360,7 @@ def main():
 
     pendulum.set_formatter('alternative')
 
-    slots = 25
+    slots = 20
     rand = 40
     start_time = Pendulum(2017, 8, 1, 9, tzinfo='America/New_York')
     S = Schedule(start_time, num_days=1, num_slots = slots, duration=30, density_percent=rand)
@@ -332,10 +373,10 @@ def main():
     f = Filler(S)
 
     for i in range(slots):
-        #S.show()
-        old = copy.deepcopy(S)
-        f.reschedule()
-        # diff(old, S)
+        S.show()
+        print("\n")
+        if f.reschedule() == False:
+            break
 
     f.report_offers()
 
