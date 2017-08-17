@@ -1,0 +1,1 @@
+offer_wait_time = 5 #in minutes
