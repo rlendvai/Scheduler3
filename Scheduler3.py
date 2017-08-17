@@ -9,6 +9,25 @@ import gspread
 
 pendulum.set_to_string_format('%m/%d %I:%M%p')
 
+class Patient:
+    def __init__(self):
+        self.first_name = names.get_first_name()
+        self.last_name = names.get_last_name()
+        self.id = self.make_id()
+
+    def make_id(self):
+
+        id = random.randint(1, 1000000000000)
+        return id
+
+    def get_name(self, type=None):
+        if type == "short":
+            return self.first_name + " " + self.last_name[0] + "."
+        else:
+            return self.first_name + " " + self.last_name
+
+    def __str__(self):
+        return self.get_name()
 class Appointment():
     def __init__(self, patient, duration, time):
         self.patient = patient
@@ -73,28 +92,6 @@ class Appointment():
 
     def __str__(self):
         return "(" + str(self.time).lower() + " " + str(self.patient.get_name(type="short") + ")")
-
-class Patient:
-    def __init__(self):
-        self.first_name = names.get_first_name()
-        self.last_name = names.get_last_name()
-        self.id = self.make_id()
-
-    def make_id(self):
-
-        id = random.randint(1, 1000000000000)
-        return id
-
-    def get_name(self, type=None):
-        if type == "short":
-            return self.first_name + " " + self.last_name[0] + "."
-        else:
-            return self.first_name + " " + self.last_name
-
-    def __str__(self):
-        return self.get_name()
-
-
 class AppSlot:
     def __init__(self, begin_time, length):
         self.appointment = None
@@ -187,8 +184,6 @@ class AppSlot:
         pass
 
         # def filled_slots(self):
-
-
 class Schedule:
     def __init__(self, start_time, num_days=1, num_slots=1, duration=30, density_percent=80):
 
@@ -261,8 +256,6 @@ class Schedule:
             self.cancel_appointment(from_time)
         else:
             print("\nCouldn't move", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to",to_time.format("MM/DD HH:mm"))
-
-
 class Offer:
     def __init__(self, original_appt, proposed_appt_slot, time_sent = None):
         self.original_appt = original_appt
@@ -276,7 +269,6 @@ class Offer:
         #+ print(self.proposed_slot)
         return string
         #+ self.proposed_slot.__str__()
-
 class Filler:
     def __init__(self, Schedule):
         self.schedule = Schedule
@@ -397,7 +389,26 @@ class Filler:
 
         return eligible_slots
 
+def Scheduler(Schedule):
+    global T, sim_runs
+    f = Filler(Schedule)
+    print("\n")
 
+    #for i in range (sim_runs):
+    # f.schedule_new()
+    #    Schedule.show()
+
+    while(1):
+        if f.reschedule() == False:
+            break
+        print("\n")
+        Schedule.show()
+        print("\nIT'S NOW", T)
+
+    Schedule.show()
+    f.report_offers()
+
+    return True
 def diff(old_schedule, new_schedule):
 
     for old_time_slot, new_time_slot in zip(old_schedule.cal_times, new_schedule.cal_times):
@@ -410,26 +421,6 @@ def diff(old_schedule, new_schedule):
             pass
             #print(True)
 
-def Scheduler(Schedule):
-    global T, sim_runs
-    f = Filler(Schedule)
-    print("\n")
-
-    for i in range (sim_runs):
-        f.schedule_new()
-        Schedule.show()
-
-    '''while(1):
-        if f.reschedule() == False:
-            break
-        print("\n")
-        Schedule.show()
-        print("\nIT'S NOW", T)'''
-
-    Schedule.show()
-    f.report_offers()
-
-    return True
 
 def main():
     '''
@@ -455,9 +446,9 @@ def main():
 
     global T, slots_per_day, sim_runs
     sim_runs = 20
-    days = 30
+    days = 5
     slots_per_day = 3
-    density = 0
+    density = 50
 
     T = Pendulum(2017, 8, 1, 9, tzinfo='America/New_York')
     S = Schedule(T, days, num_slots = slots_per_day, duration=30, density_percent=density)
