@@ -1,10 +1,10 @@
-import config
 import names
 import copy
 import random
 import time as tm
 from pendulum import *
 import pendulum
+import config
 import pickle
 import gspread
 from printer import *
@@ -421,9 +421,9 @@ class Filler:
 
 
 class Log:
-    def __init__(self, num_lines_to_show):
+    def __init__(self, dashboard_height=10):
         self.log_lines = []
-        self.num_lines_to_show = num_lines_to_show
+        self.num_lines_to_show = dashboard_height
         self.dashboard_range = 'J3:J13'
         self.log_range = "Log!a1:1000"
 
@@ -454,8 +454,8 @@ class Log:
 
 
 
-def Scheduler(Schedule):
-    global T, sim_runs
+def Scheduler(Schedule, sim_runs):
+    global T
     f = Filler(Schedule)
 
     #for i in range (sim_runs):
@@ -506,51 +506,18 @@ def main():
         fh.close()
     '''
 
+    global T, LOG, SIM_RUNS
+
+    T = config.t
+    LOG=Log(config.dashboard_height)
+    SIM_RUNS = config.sim_runs
+
     pendulum.set_formatter('alternative')
-
-    global T, slots_per_day, sim_runs, LOG
-    LOG = Log(10)
-    sim_runs = 1
-    days = 1
-    slots_per_day = 3
-    density = 50
-
-    T = Pendulum(2017, 8, 1, 9, tzinfo='America/New_York')
-    S = Schedule(T, days, num_slots = slots_per_day, duration=30, density_percent=density)
-
-    print("\n")
-    S.show()
-
-    #seek_time = Pendulum(2017, 8, 1, 9, 00, tzinfo='America/New_York')
-
-    #S.cancel_appointment(seek_time)
-
+    S = Schedule(T, config.days, num_slots = config.slots_per_day, duration=config.duration, density_percent=config.density)
 
     # This is where the monkey jumps into the water!
-    Scheduler(S)
+    Scheduler(S, SIM_RUNS)
 
-
-
-    '''
-    
-    GLOBAL TIME
-    
-    While TIME + 5(
-    
-        random_cancel
-        go(time)
-            S.docancellations()
-            S.refills
-            
-    refills(
-        Scheduler(schedule)
-            internal Scheduler.findopenings(schedule)
-            internal Sheduler.make_waitlist()
-            return Schedule
-            
-    
-    
-    '''
 
 
 
