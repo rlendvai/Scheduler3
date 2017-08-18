@@ -2,10 +2,12 @@ import config
 import names
 import copy
 import random
+import time as tm
 from pendulum import *
 import pendulum
 import pickle
 import gspread
+from printer import *
 
 pendulum.set_to_string_format('%m/%d %I:%M%p')
 
@@ -156,17 +158,21 @@ class AppSlot:
     def unfill(self):
         self.appointment = None
 
-    def status_string(self):
+    def status_printer(self):
 
-        #status_string = self.begin_time.format('MM/DD HH:mm') + ' '
-        status_string = str(self.begin_time).lower() + " "
+        status_string = ""
+        status_array = []
+        time = str(self.begin_time).lower()
 
         if self.appointment != None:
-            status_string = status_string + self.appointment.patient.get_name(type="short")
+            name = self.appointment.patient.get_name()
         else:
-            status_string = status_string + '    <FREE>    '
+            name = '    <FREE>    '
 
-        return status_string
+        status_string = time + ' ' + name
+        status_array = [time, name]
+
+        return {"string" : status_string, "array" : status_array}
 
     def getName(self):
         if self.appointment is None:
@@ -189,6 +195,7 @@ class Schedule:
 
         self.start_time = start_time
         self.cal_times = []
+        self.last_printed = []
 
 
         # the two loops are used to increment the start time by days and hours, to create the desired schedule
@@ -203,15 +210,37 @@ class Schedule:
 
     def cal_times_printer(self, cal_times):
 
+        gvalues = []
+        different = False
         last_seen_day = None
         start_time = cal_times[0][0]
 
         print("\n**** SCHEDULE STARTING: ", start_time.format('MM/DD'), " ***\n")
-        for cal_time in cal_times:
+        '''for cal_time in cal_times:
             if last_seen_day != cal_time[0].format('MM/DD'):
                 print("--------", cal_time[0].format('MM/DD'), "-------")
             print(cal_time[1].status_string())
+            gvalues.append([cal_time[1], status_string()])
+            last_seen_day = cal_time[0].format('MM/DD')'''
+
+        for cal_time in cal_times:
+            if last_seen_day != cal_time[0].format('MM/DD'):
+                print("--------", cal_time[0].format('MM/DD'), "-------")
+            print(cal_time[1].status_printer()['string'])
+            gvalues.append(cal_time[1].status_printer()['array'])
             last_seen_day = cal_time[0].format('MM/DD')
+
+        for old, new in zip(self.last_printed, gvalues):
+            if (old != new):
+                different = True
+                break
+
+        gprinter(gvalues, 'c1:D100')
+        #if different: tm.sleep(2)
+        gprinter(gvalues, 'A1:B100')
+        self.last_printed = gvalues
+
+
 
 
     def show(self):
@@ -288,7 +317,10 @@ class Filler:
     def reschedule(self):
         global T
 
-        print("\nReschedule called...")
+
+        LOG.log_event("Reschedule called...")
+
+
         target_slots = self.free_slots()
         next_slot = None
         for target_slot in target_slots:
@@ -331,7 +363,7 @@ class Filler:
         if not(eligible): reason = "FAILED: " + reason
         else: reason = "OK."
 
-        print("Eligibility check for ", slot_with_appt.appointment.patient.get_name(type="short"), ": ", reason, sep="")
+        #print("Eligibility check for ", slot_with_appt.appointment.patient.get_name(type="short"), ": ", reason, sep="")
 
         return eligible
 
@@ -345,7 +377,8 @@ class Filler:
             if min_offers_received is None or slot.appointment.totalOffersReceived() < min_offers_received:
                 min_offers_received = slot.appointment.totalOffersReceived()
                 candidate_slot = slot
-                #print("candidate is", candidate_slot.appointment.patient.get_name(), "seen", min_offers_received, "offers")
+                log_line = "candidate is " + candidate_slot.appointment.patient.get_name() + " has seen " + str(min_offers_received) + " offers"
+                LOG.log_event(log_line, False)
         return candidate_slot
 
     # Remove slots that fall in the specified date range, inclusive
@@ -360,9 +393,9 @@ class Filler:
         distance_probability = [0] # with n days distance, this is my probability of accepting an appointment
         min_days = 1
         drop_off_factor = .3
-        max_attempts = 5
+        max_loops = 2
+        max_attempts = 1
         chance_per_slot = 100/slots_per_day
-        chance_that_day_works = 80
 
         for i in range(1,31):
             distance_probability.append((10-(drop_off_factor*i))**2)
@@ -370,7 +403,7 @@ class Filler:
         eligible_slots = [slot for slot in self.free_slots() if slot.begin_time > T.add(days=min_days)]
 
         scheduling_attempts = 0
-
+        loops = 0
         for slot in eligible_slots:
             delta = T.diff(slot.begin_time).in_days()
             chance = distance_probability[delta]*chance_per_slot/100
@@ -379,20 +412,51 @@ class Filler:
                 return True #succeded in finding a slot
             scheduling_attempts += 1
             if scheduling_attempts > max_attempts:
-                return False #Exceeded max attempts without being able to schedule
+                continue #Exceeded max attempts without being able to schedule
+            max_loops += 1
+            if loops > max_loops: break
+
+        LOG.gprint_log(verbose=True, everything=True)
         return False # We ran out of slots
 
 
+class Log:
+    def __init__(self, num_lines_to_show):
+        self.log_lines = []
+        self.num_lines_to_show = num_lines_to_show
+        self.dashboard_range = 'J3:J13'
+        self.log_range = "Log!a1:1000"
+
+    def log_event(self, event_string, always_show=True):
+
+        line={'event' : event_string, 'always_show' : always_show}
+        self.log_lines.append(line)
+        if always_show: self.gprint_log()
+
+    def gprint_log(self, verbose = False, everything = False):
+
+        values = []
+        counter = 0
+        for line in reversed(self.log_lines):
+            if verbose is True or line['always_show'] is True:
+                values.append([line['event']])
+            counter += 1
+            if not everything and counter == self.num_lines_to_show:
+                    break
+
+        if everything:
+            print("Trying to print log.")
+            g_range = self.log_range
+        else:
+            g_range = self.dashboard_range
+
+        gprinter(values, g_range)
 
 
-
-
-        return eligible_slots
 
 def Scheduler(Schedule):
     global T, sim_runs
     f = Filler(Schedule)
-    print("\n")
 
     #for i in range (sim_runs):
     # f.schedule_new()
@@ -401,22 +465,22 @@ def Scheduler(Schedule):
     while(1):
         if f.reschedule() == False:
             break
-        print("\n")
         Schedule.show()
-        print("\nIT'S NOW", T)
 
     Schedule.show()
     f.report_offers()
+    LOG.gprint_log(verbose=True, everything=True)
 
     return True
+
 def diff(old_schedule, new_schedule):
 
     for old_time_slot, new_time_slot in zip(old_schedule.cal_times, new_schedule.cal_times):
         old_appt_slot = old_time_slot[1]
         new_appt_slot = new_time_slot[1]
         if old_appt_slot.getName() != new_appt_slot.getName():
-            print("Changed:", old_appt_slot.status_string())
-            print("To:", new_appt_slot.status_string())
+            LOG.log_event("Changed: " + old_appt_slot.status_printer()['string'])
+            LOG.log_event("To: " + new_appt_slot.status_printer()['sring'])
         else:
             pass
             #print(True)
@@ -444,9 +508,10 @@ def main():
 
     pendulum.set_formatter('alternative')
 
-    global T, slots_per_day, sim_runs
-    sim_runs = 20
-    days = 5
+    global T, slots_per_day, sim_runs, LOG
+    LOG = Log(10)
+    sim_runs = 1
+    days = 1
     slots_per_day = 3
     density = 50
 
