@@ -1,7 +1,8 @@
 from __future__ import print_function
 import httplib2
 import os
-
+import config
+import pendulum
 
 from apiclient import discovery
 from oauth2client import client
@@ -50,52 +51,110 @@ def get_credentials():
         print('Storing credentials to ' + credential_path)
     return credentials
 
-def gprinter(user_values, range_string):
+
+def gprinter(user_values, range_string, insert_column_first=None, insert_column_last=None):
+
 
     credentials = get_credentials()
-    http = credentials.authorize(httplib2.Http())
-    discoveryUrl = ('https://sheets.googleapis.com/$discovery/rest?'
-                    'version=v4')
 
-    #service = discovery.build('sheets', 'v4', http=http,  discoveryServiceUrl=discoveryUrl)
     service = discovery.build('sheets', 'v4', credentials=credentials)
 
-
-
     spreadsheetId = '1E_ZG6PEapGOo_rZqzKK4dUKwghQB2p0tjSlAF7zx7lE'
-    '''rangeName = 'Schedule Data!A2:E'
-    result = service.spreadsheets().values().get(
-        spreadsheetId=spreadsheetId, range=rangeName).execute()'''
-    '''values = result.get('values', [])
 
-    
-
-    if not values:
-        print('No data found.')
-    else:
-        print('Name, Major:')
-        for row in values:
-            # Print columns A and E, which correspond to indices 0 and 4.
-            print('%s, %s' % (row[0], row[4]))'''
 
 
     # The A1 notation of the values to update.
-    range_ = range_string  # TODO: Update placeholder value.
+    range_ = range_string
 
     # How the input data should be interpreted.
     value_input_option = 'RAW'
 
-    value_range_body = {"values": user_values}
+    if insert_column_first is not None:
+        requests = []
+        insert_request = {"insertDimension": {
+                                                "range": {
+                                                        "dimension": "COLUMNS",
+                                                        "startIndex": insert_column_first,
+                                                        "endIndex": insert_column_last+1
+                                                }
+                                             }
+                          }
+        requests.append(insert_request)
+        body = {'requests': requests}
+        insert_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
+        pprint(insert_response)
+
+    value_range_body = {
+            "values": user_values
+
+    }
 
 
     request = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=range_, valueInputOption=value_input_option, body=value_range_body)
-    response = request.execute()
+    write_response = request.execute()
 
     # TODO: Change code below to process the `response` dict:
-    #pprint(response)
+
+    pprint(write_response)
 
 
+#
+def gcolumn_printer(values, columns_to_move):
+    pass
+
+class Log:
+    def __init__(self):
+        self.log_lines = []
+        self.log_range = config.log_range
+        self.first_row = config.total_entries + 2
+        self.current_row = self.first_row
+        self.schedule_has_been_printed_before = False
+
+    def log_event(self, event_string, always_show=True):
+
+        line={'event' : event_string, 'always_show' : always_show, 'time' : pendulum.now()}
+        self.log_lines.append(line)
+        if always_show: self.print_log_line([event_string])
+
+    def print_log_line(self, value):
+
+        range_string = "B" + str(self.current_row) + ":B" + str(self.current_row)
+        gprinter([value], range_string)
+        self.current_row += 1
+
+    def gprint_log(self, verbose = False, everything = True):
+
+        values = []
+        counter = 0
+        for line in reversed(self.log_lines):
+            if verbose is True or line['always_show'] is True:
+                values.append([line['time'].isoformat(), line['event']])
+            counter += 1
+            if not everything and counter == self.num_lines_to_show:
+                    break
+
+        print("Printing complete log...")
+        g_range = self.log_range
+        values = list(reversed(values))
 
 
-if __name__ == '__main__':
-    main()
+        gprinter(values, g_range)
+
+    def scheduleDisplay(self, entries):
+        if self.schedule_has_been_printed_before is False:
+            self.schedule_has_been_printed_before = True
+            insert_column_first = None
+            insert_column_last = None
+            range = config.schedule_display_range_initial
+        else:
+            just_patients = []
+            for entry in entries:
+                just_patients.append([entry[1]])
+            entries = just_patients
+            insert_column_first = 1
+            insert_column_last = 1
+            range = config.schedule_display_range_secondary
+
+        gprinter(entries, range, insert_column_first=insert_column_first, insert_column_last=insert_column_last)
+        # Reset the current log printing row to the top, since we just started a new column.
+        self.current_row = self.first_row
