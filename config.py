@@ -1,7 +1,7 @@
 #import pendulum
 
 
-sim_runs = 50 #number of times simulator should loop overall
+sim_runs = 5 #number of times simulator should loop overall
 
 days = 5 # number of days of schedule to create
 slots_per_day = 3 # number of appointment slots each day should have

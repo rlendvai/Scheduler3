@@ -52,7 +52,7 @@ def get_credentials():
     return credentials
 
 
-def gprinter(user_values, range_string, insert_column_first=None, insert_column_last=None):
+def gprinter(user_values, range_string, operation = None, insert_column_first=None, insert_column_last=None):
 
 
     credentials = get_credentials()
@@ -63,39 +63,51 @@ def gprinter(user_values, range_string, insert_column_first=None, insert_column_
 
 
 
-    # The A1 notation of the values to update.
-    range_ = range_string
 
-    # How the input data should be interpreted.
-    value_input_option = 'RAW'
 
-    if insert_column_first is not None:
+    if operation is not None:
         requests = []
-        insert_request = {"insertDimension": {
-                                                "range": {
-                                                        "dimension": "COLUMNS",
-                                                        "startIndex": insert_column_first,
-                                                        "endIndex": insert_column_last+1
-                                                }
-                                             }
-                          }
-        requests.append(insert_request)
-        body = {'requests': requests}
-        insert_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
-        pprint(insert_response)
+        if operation == 'insert':
+            request = {"insertDimension": {
+                                                    "range": {
+                                                            "dimension": "COLUMNS",
+                                                            "startIndex": insert_column_first,
+                                                            "endIndex": insert_column_last+1
+                                                    }
+                                                 }
+                              }
+            requests.append(request)
+            body = {'requests': requests}
+            insert_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
+            pprint(insert_response)
 
-    value_range_body = {
-            "values": user_values
+        elif operation == 'clear':
+            request = {"updateCells": {
+                                "range": {
+                                    "sheetId" : 0
+                                },
+                                "fields": "userEnteredValue"
+                                 }
+                            }
 
-    }
+            requests.append(request)
+            body = {'requests': requests}
+            request_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
+            pprint(request_response)
 
+    else:
 
-    request = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=range_, valueInputOption=value_input_option, body=value_range_body)
-    write_response = request.execute()
+        # The A1 notation of the values to update.
+        range_ = range_string
+        value_input_option = 'RAW'
+        value_range_body = {"values": user_values}
+        print("trying to google print")
+        request = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=range_, valueInputOption=value_input_option, body=value_range_body)
+        write_response = request.execute()
 
-    # TODO: Change code below to process the `response` dict:
+        # TODO: Change code below to process the `response` dict:
 
-    pprint(write_response)
+        pprint(write_response)
 
 
 #
@@ -143,6 +155,7 @@ class Log:
     def scheduleDisplay(self, entries):
         if self.schedule_has_been_printed_before is False:
             self.schedule_has_been_printed_before = True
+            operation = None
             insert_column_first = None
             insert_column_last = None
             range = config.schedule_display_range_initial
@@ -151,10 +164,11 @@ class Log:
             for entry in entries:
                 just_patients.append([entry[1]])
             entries = just_patients
+            operation = "insert"
             insert_column_first = 1
             insert_column_last = 1
             range = config.schedule_display_range_secondary
 
-        gprinter(entries, range, insert_column_first=insert_column_first, insert_column_last=insert_column_last)
+        gprinter(entries, range, operation = operation, insert_column_first=insert_column_first, insert_column_last=insert_column_last)
         # Reset the current log printing row to the top, since we just started a new column.
         self.current_row = self.first_row

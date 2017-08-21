@@ -9,7 +9,7 @@ from printer import gprinter
 pendulum.set_to_string_format('%m/%d %I:%M%p')
 
 
-class MakeOffers:
+class Updater:
     def __init__(self, Schedule):
         self.schedule = Schedule
         self.sent_offers = []
@@ -25,6 +25,7 @@ class MakeOffers:
     def free_slots(self):
         return [x[1] for x in self.schedule.cal_times if not(x[1].filled_status())]
 
+    #Fill as many empty slots on schedule as possible
     def reschedule(self):
         global T
 
@@ -34,11 +35,15 @@ class MakeOffers:
 
         target_slots = self.free_slots()
         next_slot = None
+        # For the next available slot in the schedule, starting at the earliest, we'll find someone willing to move to it
         for target_slot in target_slots:
-            LOG.log_event("Trying to fill " + str(target_slot))
+            LOG.log_event("Trying to fill " + str(target_slot), False)
+            #Try to findan appointment slot with someone who's willing to move
             next_slot = self.getNextSlot(target_slot)
             if next_slot is not None:
+                #we couldn't find anyone to move
                 break
+        # We couldnt't find a willing mover or an available slot to move to
         if next_slot is None or target_slot is None:
             return False
 
@@ -51,6 +56,7 @@ class MakeOffers:
             T = T.add(minutes=config.offer_wait_time)
             return True
 
+    #determine if a patient is eligible for a specific slot
     def isEligible(self, slot_with_appt, target_slot, hour_limit=1):
         #qualified only if slot is later than the first available slot
         LOG.log_event("Evaluating eligibility for " + slot_with_appt.appointment.patient.get_name(type="short"),False )
@@ -78,25 +84,25 @@ class MakeOffers:
 
         return eligible
 
-    # Find the next eligible slot
-
+    # Find the next slot that we'll move a patient from, based on patient's qualifcations relative to other patients
     def getNextSlot(self, target_slot):
         candidate_slot = None
         min_offers_received = None
+        #Iterate over all available patient slots
         for slot in reversed(self.filled_slots()):
             if not(self.isEligible(slot, target_slot, 1)): continue
             if min_offers_received is None or slot.appointment.totalOffersReceived() < min_offers_received:
                 min_offers_received = slot.appointment.totalOffersReceived()
                 candidate_slot = slot
-                log_line = "candidate is " + candidate_slot.appointment.patient.get_name() + " has seen " + str(min_offers_received) + " offers"
-                LOG.log_event(log_line)
+                LOG.log_event("candidate is " + \
+                                         candidate_slot.appointment.patient.get_name() + \
+                                         " has seen " + str(min_offers_received) + " offers")
         return candidate_slot
 
-    # Remove slots that fall in the specified date range, inclusive
+    # Remove slots that fall in the specified date range, inclusive. NOT CURRENTLY USED.
     def remove_between_dates(self, date1, date2, appt_slots):
         remaining_slots = [slot for slot in appt_slots if slot.between_dates(date1, date2) ]
         return remaining_slots
-
 
 
     def schedule_new(self):
@@ -133,20 +139,19 @@ class MakeOffers:
 
 
 
-def Scheduler(Schedule, sim_runs):
+def SimRunner(Schedule, sim_runs):
     global T
-    offer_maker = MakeOffers(Schedule)
+    offer_maker = Updater(Schedule)
 
     #for i in range (sim_runs):
     # f.schedule_new()
     #    Schedule.show()
 
-    while(1):
-        if offer_maker.reschedule() == False:
-            break
-        Schedule.show()
+    for i in range (config.sim_runs):
+        if offer_maker.reschedule():
+            print("trying to show schedule")
+            Schedule.show()
 
-    Schedule.show()
     offer_maker.report_offers()
     LOG.gprint_log(verbose=True, everything=True)
 
@@ -175,6 +180,7 @@ class Schedule:
         self.start_time = start_time
         self.cal_times = []
         self.last_printed = []
+        self.now = start_time
 
 
         # the two loops are used to increment the start time by days and hours, to create the desired schedule
@@ -195,6 +201,8 @@ class Schedule:
 
         LOG.scheduleDisplay(schedule_entries)
 
+    def clock(self, minutes):
+        self.now = self.now + minutes
 
     def show(self):
         self.cal_times_printer(self.cal_times)
@@ -267,6 +275,8 @@ def main():
 
     #LOG= Log(config.days*config.slots_per_day + 1) # figure out total slots so we can write the log below it
     LOG= Log() # figure out total slots so we can write the log below it
+    #TODO clear the google sheets screen
+    gprinter("", "", "clear")
 
     SIM_RUNS = config.sim_runs
 
@@ -274,6 +284,6 @@ def main():
     S = Schedule(T, config.days, num_slots = config.slots_per_day, duration=config.duration, density_percent=config.density)
 
     # This is where the monkey jumps into the water!
-    Scheduler(S, SIM_RUNS)
+    SimRunner(S, SIM_RUNS)
 
 main()
