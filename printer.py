@@ -54,6 +54,7 @@ def get_credentials():
 
 def gprinter(user_values, range_string, operation = None, insert_column_first=None, insert_column_last=None):
 
+    return
 
     credentials = get_credentials()
 
@@ -61,11 +62,25 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
 
     spreadsheetId = '1E_ZG6PEapGOo_rZqzKK4dUKwghQB2p0tjSlAF7zx7lE'
 
+    if operation == 'clear':
+        requests=[]
+        request = {"updateCells": {
+                            "range": {
+                                "sheetId" : 0
+                            },
+                            "fields": "userEnteredValue"
+                             }
+                        }
+
+        requests.append(request)
+        body = {'requests': requests}
+        request_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
+        #pprint(request_response)
+        return
 
 
 
-
-    if operation is not None:
+    if operation == "insert":
         requests = []
         if operation == 'insert':
             request = {"insertDimension": {
@@ -79,35 +94,28 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
             requests.append(request)
             body = {'requests': requests}
             insert_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
-            pprint(insert_response)
+            #pprint(insert_response)
 
-        elif operation == 'clear':
-            request = {"updateCells": {
-                                "range": {
-                                    "sheetId" : 0
-                                },
-                                "fields": "userEnteredValue"
-                                 }
-                            }
 
-            requests.append(request)
-            body = {'requests': requests}
-            request_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
-            pprint(request_response)
 
-    else:
 
-        # The A1 notation of the values to update.
-        range_ = range_string
-        value_input_option = 'RAW'
-        value_range_body = {"values": user_values}
-        print("trying to google print")
-        request = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=range_, valueInputOption=value_input_option, body=value_range_body)
-        write_response = request.execute()
 
-        # TODO: Change code below to process the `response` dict:
+    # The A1 notation of the values to update.
+    range_ = range_string
+    value_input_option = 'RAW'
+    value_range_body = {"values": user_values}
+    #print("trying to google print")
+    #print("lenght of user values is:", len(user_values))
+    for value in user_values:
+        #print(value)
+        pass
 
-        pprint(write_response)
+    request = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=range_, valueInputOption=value_input_option, body=value_range_body)
+    write_response = request.execute()
+
+    # TODO: Change code below to process the `response` dict:
+
+    #pprint(write_response)
 
 
 #
@@ -122,15 +130,17 @@ class Log:
         self.current_row = self.first_row
         self.schedule_has_been_printed_before = False
 
-    def log_event(self, event_string, always_show=True):
+    def log_event(self, event_string, always_show=True, screen_print = False):
 
         line={'event' : event_string, 'always_show' : always_show, 'time' : pendulum.now()}
         self.log_lines.append(line)
-        if always_show: self.print_log_line([event_string])
+        if always_show: self.print_log_line([event_string], screen_print)
 
-    def print_log_line(self, value):
+    def print_log_line(self, value, screen_print = False):
 
         range_string = "B" + str(self.current_row) + ":B" + str(self.current_row)
+        if(screen_print):
+            print(value)
         gprinter([value], range_string)
         self.current_row += 1
 
@@ -153,6 +163,7 @@ class Log:
         gprinter(values, g_range)
 
     def scheduleDisplay(self, entries):
+
         if self.schedule_has_been_printed_before is False:
             self.schedule_has_been_printed_before = True
             operation = None

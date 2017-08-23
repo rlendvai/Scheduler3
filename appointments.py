@@ -1,6 +1,6 @@
 import copy
 import random
-
+import config
 import names
 
 
@@ -73,12 +73,15 @@ class Appointment:
 
     def try_change(self, time, apptslot):
 
+        global T, LOG
+
 
         #self.offers.append([time, True])
 
-        print("\n#", len(self.offers)+1, ": Trying ", self.patient.get_name(type="short"), " > ", end="", sep="")
+        log_string = "#" + str(len(self.offers)+1) + ": Trying " + self.patient.get_name(type="short") + " > "
+        #LOG.log_event(log_string, always_show=False, screen_print=False)
 
-        if random.random()<.8:
+        if random.random()<config.chance_patient_accepts_offer/100:
             print("Ok")
             self.offers.append([copy.deepcopy(apptslot), True])
             return True

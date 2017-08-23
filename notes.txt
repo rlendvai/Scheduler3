@@ -1,0 +1,12 @@
+How will schedule fluctuate for a doctor using our product
+How many patients will need to be in backlog to see change
+How often will we need to ping patients for an appointment
+
+
+pivot table would show:
+Name
+Time of offer
+Slot that was offered
+Offer type
+Offer value
+Offer answer
