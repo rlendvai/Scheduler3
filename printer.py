@@ -127,22 +127,27 @@ class Log:
         self.log_lines = []
         self.log_range = config.log_range
         self.first_row = config.total_entries + 2
-        self.current_row = self.first_row
+        self.current_grow = self.first_row
         self.schedule_has_been_printed_before = False
 
-    def log_event(self, event_string, always_show=True, screen_print = False):
+    def log_event(self, event_string, type='general', screen_print = False):
 
-        line={'event' : event_string, 'always_show' : always_show, 'time' : pendulum.now()}
+        line={'time' : pendulum.now(), 'event' : event_string, 'type' : type}
         self.log_lines.append(line)
-        if always_show: self.print_log_line([event_string], screen_print)
 
-    def print_log_line(self, value, screen_print = False):
+        self.print_log_line(line)
 
-        range_string = "B" + str(self.current_row) + ":B" + str(self.current_row)
-        if(screen_print):
-            print(value)
-        gprinter([value], range_string)
-        self.current_row += 1
+
+    #expects a dict(line) which contains a string, a line type, and a time
+    def print_log_line(self, line):
+        event_type = line['type']
+        print_type = config.event_print_types[event_type]
+        if 'console' in print_type:
+            print(line['event'])
+        elif 'google' in print_type:
+            range_string = "B" + str(self.current_grow) + ":B" + str(self.current_grow)
+            gprinter(line['event'], range_string)
+            self.current_grow += 1
 
     def gprint_log(self, verbose = False, everything = True):
 

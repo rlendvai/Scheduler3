@@ -18,6 +18,7 @@ chance_patient_accepts_offer = 80
 chance_of_new_appt_per_5_mins = 100 * (duration/5)
 max_days_ahead = 31 #max days ahead to do operations
 overall_cancellation_rate = 100
+# Set up probabilities for cancellation, and create an according array holding the weights of each (for input into rand)
 cancel_buckets = [
                     {'begin_day': 0, 'end_day': 0, 'weight': 37},
                     {'begin_day': 1, 'end_day': 1, 'weight': 13},
@@ -31,8 +32,21 @@ cancel_buckets = [
                     {'begin_day': 15, 'end_day': 21, 'weight': 4},
                     {'begin_day': 22, 'end_day': 60, 'weight': 11}
                  ]
-
-
 weights = []
 for bucket in cancel_buckets:
     weights.append(bucket['weight'])
+# Govern how different event types should be printed
+#c == console, g == google
+event_print_types = dict(
+                appointment_creation=[],
+                appointment_fill=['console'],
+                cancel=['google'],
+                general=[],
+                move_schedule_entry = [],
+                eligibility = [],
+                offer_response = [],
+                scheduling=['console'],
+                simulator = [],
+                utility = ['console']
+                )
+pass

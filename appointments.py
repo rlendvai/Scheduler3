@@ -82,11 +82,11 @@ class Appointment:
         #LOG.log_event(log_string, always_show=False, screen_print=False)
 
         if random.random()<config.chance_patient_accepts_offer/100:
-            print("Ok")
+            LOG.log_event("Offer accepted", 'offer_response')
             self.offers.append([copy.deepcopy(apptslot), True])
             return True
         else:
-            print("REFUSED")
+            LOG.log_event("Offer REFUSED", 'offer_response')
             self.offers.append([copy.deepcopy(apptslot), False])
             return False
 

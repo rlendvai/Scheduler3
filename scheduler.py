@@ -54,7 +54,7 @@ class Updater:
         next_slot = None
         # For the next available slot in the schedule, starting at the earliest, we'll find someone willing to move to it
         for target_slot in target_slots:
-            LOG.log_event("Trying to fill " + str(target_slot), False)
+            LOG.log_event("Trying to fill " + str(target_slot),'appointment_fill')
             #Try to findan appointment slot with someone who's willing to move
             next_slot = self.getNextSlot(target_slot)
             if next_slot is not None:
@@ -74,7 +74,7 @@ class Updater:
     #determine if a patient is eligible for a specific slot
     def isPatientEligible(self, slot_with_appt, target_slot):
         #qualified only if slot is later than the first available slot
-        LOG.log_event("Evaluating eligibility for " + slot_with_appt.appointment.patient.get_name(type="short"),False )
+        LOG.log_event("Evaluating eligibility for " + slot_with_appt.appointment.patient.get_name(type="short"), 'eligibility' )
 
         eligible = True
         reason = ""
@@ -95,7 +95,7 @@ class Updater:
         if not(eligible): reason = "FAILED: " + reason
         else: reason = "OK."
 
-        LOG.log_event("Eligibility check for " + slot_with_appt.appointment.patient.get_name(type="short") + ": " + reason, False)
+        LOG.log_event("Eligibility check for " + slot_with_appt.appointment.patient.get_name(type="short") + ": " + reason, 'eligibility')
 
         return eligible
 
@@ -144,7 +144,7 @@ class Updater:
             chance = distance_probability[delta]*chance_per_slot/100
             if(random.uniform(1,100) < chance):
                 slot.fill(Appointment(Patient(), slot.length, slot.begin_time))
-                LOG.log_event("Created new appointment", True, True)
+                LOG.log_event("Created new appointment", 'appointment_creation')
                 return True #succeded in finding a slot
             scheduling_attempts += 1
             if scheduling_attempts > max_attempts:
@@ -232,6 +232,7 @@ class Schedule:
     # cancels a rand appointment, on a rand day, according to the weights assigned in config
     def cancel_rand_appointment(self):
 
+
         #dictionary that contains day range, from today, when the appointment should be cancelled
         cancel_range = random.choices(config.cancel_buckets, config.weights)[0]
         cancel_period_begin_days_from_today = cancel_range['begin_day']
@@ -243,7 +244,7 @@ class Schedule:
         cal_times = self.get_x_to_y_time_cal_times(cancel_period_start, cancel_period_end, filled_only=True)
         if len(cal_times)>0:
             cal_time_to_cancel = random.choice(cal_times)
-            LOG.log_event("Cancelling " + str(cal_time_to_cancel[1]), screen_print=True)
+            LOG.log_event("Cancelling " + str(cal_time_to_cancel[1]), type='cancel')
             appt_time_to_cancel = cal_time_to_cancel[0]
             self.cancel_appointment(appt_time_to_cancel)
             return appt_time_to_cancel
@@ -280,7 +281,8 @@ class Schedule:
 
     def move(self, from_time, to_time):
 
-        LOG.log_event("\nMoving " + dict(self.cal_times)[from_time].getName() + " from " + from_time + " to " + to_time)
+        log_string = "Moving " + dict(self.cal_times)[from_time].getName() + " from " + from_time + " to " + to_time
+        LOG.log_event(log_string, type='move_schedule_entry')
         self.fill_appointment(to_time, dict(self.cal_times)[from_time].appointment)
         #self.show()
         self.cancel_appointment(from_time)
@@ -312,7 +314,7 @@ def SimRunner(schedule, sim_runs):
     # f.schedule_new()
     #    schedule.show()
     for i in range (config.sim_runs):
-        LOG.log_event("It's now " + str(T), True, True)
+        LOG.log_event("It's now " + str(T), type='simulator')
         #Is it the beginning of an appointment? If so, let's make a new one, and let's cancel one.
         if(schedule.is_filled(T)):
             schedule.do_daily_cancel(config.overall_cancellation_rate)
@@ -325,7 +327,7 @@ def SimRunner(schedule, sim_runs):
 
 
     offer_maker.report_offers()
-    LOG.log_event("All done!")
+    LOG.log_event("All done!", type='utility')
     LOG.gprint_log(verbose=True, everything=True)
 
     return True
