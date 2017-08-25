@@ -48,8 +48,6 @@ class Appointment:
 
         return string
 
-
-
     def seenIt(self, appt_slot):
         counter = 0
         log_string = ("Asking if " + str(self.patient) + " has seen " + str(appt_slot))
@@ -67,7 +65,7 @@ class Appointment:
     def change_time(self,time):
         self.time = time
 
-    def try_change(self, time, apptslot):
+    def try_change(self, apptslot):
 
         log_string = "#" + str(len(self.offers)+1) + ": Trying " + self.patient.get_name(type="short") + " > "
         LOG.log(log_string, 'offer_response')
@@ -77,7 +75,7 @@ class Appointment:
             self.offers.append([copy.deepcopy(apptslot), True])
             return True
         else:
-            LOG.log_event("Offer REFUSED", 'offer_response')
+            LOG.log("Offer REFUSED", 'offer_response')
             self.offers.append([copy.deepcopy(apptslot), False])
             return False
 

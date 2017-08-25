@@ -136,10 +136,10 @@ class Log:
     #expects a dict(line) which contains a string, a line type, and a time
     def print_log_line(self, line):
         event_type = line['type']
-        print_type = config.event_print_types[event_type]
-        if 'console' in print_type:
-            print(line['event'])
-        elif 'google' in print_type:
+        print_types = config.event_print_types[event_type]
+        if 'console' in print_types:
+            print(event_type + ':', line['event'])
+        elif 'google' in print_types:
             range_string = "B" + str(self.current_grow) + ":B" + str(self.current_grow)
             gprinter(line['event'], range_string)
             self.current_grow += 1

@@ -1,9 +1,9 @@
 #import pendulum
 
 
-sim_runs = 1 #number of times simulator should loop overall
+sim_runs = 10 #number of times simulator should loop overall
 
-days = 1 # number of days of schedule to create
+days = 3 # number of days of schedule to create
 slots_per_day = 6 # number of appointment slots each day should have
 duration = 30 #duration of appointments
 total_entries = slots_per_day * days
@@ -14,7 +14,7 @@ schedule_display_range_secondary = "B1:B" + str(total_entries)
 log_range = "Log!a1:B1000000"
 dashboard_start_row = total_entries + 2
 min_offer_delta_hours = 12
-chance_patient_accepts_offer = 80
+chance_patient_accepts_offer = 50
 chance_of_new_appt_per_5_mins = 100 * (duration/5)
 max_days_ahead = 31 #max days ahead to do operations
 overall_cancellation_rate = 100
@@ -38,18 +38,18 @@ for bucket in cancel_buckets:
 # Govern how different event types should be printed
 #c == console, g == google
 event_print_types = dict(
-                appointment_creation=[],
-                appointment_fill=[],
+                appointment_creation=['console'],
+                appointment_fill=['console'],
                 cancel=[],
-                general=[],
+                general=['console'],
                 eligibility = [],
                 logging = [],
-                offer_making = [],
-                offer_report = [],
-                offer_response = [],
+                offer_making = [''],
+                offer_report = ['console'],
+                offer_response = ['console'],
                 rescheduling = [],
-                scheduling=[],
-                schedule = [],
+                scheduling=['console'],
+                schedule = ['console'],
                 simulator = [],
                 utility = []
                 )

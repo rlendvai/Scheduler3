@@ -53,24 +53,27 @@ class Updater:
         LOG.log("Reschedule called...")
 
         target_slots = self.free_slots()
-        next_slot = None
+        slot_to_reschedule = None
         # For the next available slot in the schedule, starting at the earliest, we'll find someone willing to move to it
         for target_slot in target_slots:
             LOG.log("Trying to fill " + str(target_slot), 'appointment_fill')
             #Try to findan appointment slot with someone who's willing to move
-            next_slot = self.getNextSlot(target_slot)
-            if next_slot is not None:
+            slot_to_reschedule = self.find_slot_to_reschedule(target_slot)
+            if slot_to_reschedule is not None:
                 #we couldn't find anyone to move
                 break
         # We couldnt't find a willing mover or an available slot to move to
-        if next_slot is None or target_slot is None:
+        if slot_to_reschedule is None or target_slot is None:
             return False
 
         free_time = target_slot.begin_time
-        original_time = next_slot.begin_time
-        offer=Offer(next_slot, copy.deepcopy(target_slot))
+        original_time = slot_to_reschedule.begin_time
+        offer=Offer(slot_to_reschedule, copy.deepcopy(target_slot))
         self.sent_offers.append(offer)
-        self.schedule.try_move(original_time, free_time)
+        if (slot_to_reschedule.appointment.try_change(target_slot)):
+            self.schedule.move_appointment(from_slot=slot_to_reschedule, to_slot=target_slot)
+
+        #self.schedule.try_move(original_time, free_time)
         return True
 
     # determine if a patient is eligible for a specific slot
@@ -102,7 +105,7 @@ class Updater:
 
     # Find the next slot that we'll move a patient from, based on patient's qualifcations relative to other patients
 
-    def getNextSlot(self, target_slot):
+    def find_slot_to_reschedule(self, target_slot):
         candidate_slot = None
         min_offers_received = None
         #Iterate over all available patient slots
@@ -228,14 +231,13 @@ class Schedule:
     # Will execute a cancellation according to the percent probability assigned.
     # It decides only whether a cancellation should occure, not which appointment should be cancelled
     def do_daily_cancel(self, percent):
-        if random.random() < percent/100:
+        if random.random() <= percent/100:
             self.cancel_rand_appointment()
 
     # cancels a rand appointment, on a rand day, according to the weights assigned in config
     def cancel_rand_appointment(self):
 
-
-        #dictionary that contains day range, from today, when the appointment should be cancelled
+        # dictionary that contains day range, from today, when the appointment should be cancelled
         cancel_range = random.choices(config.cancel_buckets, config.weights)[0]
         cancel_period_begin_days_from_today = cancel_range['begin_day']
         cancel_period_end_days_from_today = cancel_range['end_day']
@@ -253,7 +255,6 @@ class Schedule:
         else:
             False
 
-
     def cancel_appointment(self, time):
         # unfill the slot at this time in the schedule
 
@@ -264,38 +265,9 @@ class Schedule:
         self.cal_times_printer(self.cal_times)
 
 
-    def fill_appointment(self, time, appointment, force = True):
-        if force == True:
-            return dict(self.cal_times)[time].fill(appointment)
-        else:
-            return dict(self.cal_times)[time].fill(appointment, force = False)
-
-    def find_slot_id(self, time):
-        for i in range(len(self.cal_times)):
-            if self.cal_times[i][0] == time:
-                return i
-        return False
-
-    def move(self, from_time, to_time):
-
-        log_string = "Moving " + dict(self.cal_times)[from_time].getName() + " from " + from_time + " to " + to_time
-        LOG.log(log_string, type='move_schedule_entry')
-        self.fill_appointment(to_time, dict(self.cal_times)[from_time].appointment)
-        #self.show()
-        self.cancel_appointment(from_time)
-
-    def try_move(self, from_time, to_time):
-
-        #print("\nTrying to move", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to", to_time.format("MM/DD HH:mm"))
-
-
-        if(self.fill_appointment(to_time, dict(self.cal_times)[from_time].appointment, force=False)):
-            log_string=("Moving " + dict(self.cal_times)[from_time].getName() + " from " + from_time.format("MM/DD HH:mm") + " to " + to_time.format("MM/DD HH:mm"))
-            LOG.log(log_string, 'rescheduling')
-            self.cancel_appointment(from_time)
-        else:
-            log_string = ("\nCouldn't move " + dict(self.cal_times)[from_time].getName() + " from " + from_time.format("MM/DD HH:mm") + " to " + to_time.format("MM/DD HH:mm"))
-            LOG.log(log_string, 'rescheduling')
+    def move_appointment(self, from_slot: AppSlot, to_slot: AppSlot):
+        to_slot.fill(from_slot.appointment)
+        from_slot.unfill()
 
     # Return True if there is an appointment at the given time. False otherwise.
     def is_filled(self, time):
