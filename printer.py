@@ -75,7 +75,7 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
         requests.append(request)
         body = {'requests': requests}
         request_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
-        LOG.log_event(request_response, 'logging')
+        LOG.log(request_response, 'logging')
 
         return
 
@@ -93,13 +93,13 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
             requests.append(request)
             body = {'requests': requests}
             insert_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
-            LOG.log_event(insert_response, 'logging')
+            LOG.log(insert_response, 'logging')
 
     # The A1 notation of the values to update.
     range_ = range_string
     value_input_option = 'RAW'
     value_range_body = {"values": user_values}
-    LOG.log_event("Google printing", 'logging')
+    LOG.log("Google printing", 'logging')
 
 
     request = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=range_, valueInputOption=value_input_option, body=value_range_body)
@@ -107,7 +107,7 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
 
     # TODO: Change code below to process the `response` dict:
 
-    LOG.log_event(write_response, 'logging')
+    LOG.log(write_response, 'logging')
     #pprint(write_response)
 
 
@@ -123,7 +123,7 @@ class Log:
         self.current_grow = self.first_grow
         self.schedule_has_been_printed_before = False
 
-    def log_event(self, event_string, type='general'):
+    def log(self, event_string, type='general'):
 
         assert type in config.event_print_types , "Trying to log unknown type."
 
@@ -155,7 +155,7 @@ class Log:
             if not everything and counter == self.num_lines_to_show:
                     break
 
-        LOG.log_event("Printing complete log...", 'logging')
+        LOG.log("Printing complete log...", 'logging')
         g_range = self.log_range
         values = list(reversed(values))
 

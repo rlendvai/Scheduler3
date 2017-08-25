@@ -1,9 +1,9 @@
 #import pendulum
 
 
-sim_runs = 3 #number of times simulator should loop overall
+sim_runs = 1 #number of times simulator should loop overall
 
-days = 5 # number of days of schedule to create
+days = 1 # number of days of schedule to create
 slots_per_day = 6 # number of appointment slots each day should have
 duration = 30 #duration of appointments
 total_entries = slots_per_day * days
@@ -44,7 +44,7 @@ event_print_types = dict(
                 general=[],
                 eligibility = [],
                 logging = [],
-                offer_making = ['console'],
+                offer_making = [],
                 offer_report = [],
                 offer_response = [],
                 rescheduling = [],

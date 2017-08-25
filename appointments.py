@@ -2,19 +2,16 @@ import copy
 import random
 import config
 import names
+from utility import ID
 from printer import Log, LOG
 
-
+id_db = ID()
 class Patient:
     def __init__(self):
         self.first_name = names.get_first_name()
         self.last_name = names.get_last_name()
-        self.id = self.make_id()
+        self.id = id_db.get_new_ID(self)
 
-    def make_id(self):
-
-        id = random.randint(1, 1000000000000)
-        return id
 
     def get_name(self, type=None):
         if type == "short":
@@ -32,7 +29,7 @@ class Appointment:
         self.duration = duration
         self.time = time
         self.offers = []
-        self.id = self.make_id()
+        self.id = id_db.get_new_ID(self)
 
     def offers_report(self):
 
@@ -52,20 +49,16 @@ class Appointment:
         return string
 
 
-    def make_id(self):
-
-        id = random.randint(1,1000000000000)
-        return id
 
     def seenIt(self, appt_slot):
         counter = 0
         log_string = ("Asking if " + str(self.patient) + " has seen " + str(appt_slot))
-        LOG.log_event(log_string, 'offer_making')
+        LOG.log(log_string, 'offer_making')
         for offer in self.offers:
             if offer[0] == appt_slot:
                 counter+=1
         log_string=(str(self.patient) + "has been offered " + str(appt_slot) + " " + str(counter) + " times before...")
-        LOG.log_event(log_string,'offer_making')
+        LOG.log(log_string, 'offer_making')
         return counter
 
     def totalOffersReceived(self):
@@ -76,19 +69,15 @@ class Appointment:
 
     def try_change(self, time, apptslot):
 
-        global T, LOG
-
-
-
         log_string = "#" + str(len(self.offers)+1) + ": Trying " + self.patient.get_name(type="short") + " > "
-        LOG.log_event(log_string, 'offer_response')
+        LOG.log(log_string, 'offer_response')
 
         if random.random()<config.chance_patient_accepts_offer/100:
-            #LOG.log_event("Offer accepted", 'offer_response')
+            LOG.log("Offer accepted", 'offer_response')
             self.offers.append([copy.deepcopy(apptslot), True])
             return True
         else:
-          #  LOG.log_event("Offer REFUSED", 'offer_response')
+            LOG.log_event("Offer REFUSED", 'offer_response')
             self.offers.append([copy.deepcopy(apptslot), False])
             return False
 
@@ -102,6 +91,7 @@ class AppSlot:
         self.type = "General"
         self.begin_time = begin_time
         self.length = length
+        self.id = id_db.get_new_ID(self)
 
         if length > 0:
             self.fill(Appointment(Patient(), length, begin_time))

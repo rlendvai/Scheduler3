@@ -2,6 +2,7 @@ import copy
 import random
 import pendulum
 import config
+import utility
 from appointments import Patient, Appointment, AppSlot
 from printer import *
 from printer import gprinter
@@ -39,8 +40,34 @@ def pick_day():
 
     #return cancel_bucket
 
+class ID:
+    def __init__(self):
+        self.ids = {}
+
+    def get_new_ID(self, var):
+        var_type = type(var)
+        if var.ID is None:
+            if var_type in self.ids:
+                self.ids[var_type] += 1
+            else:
+                self.ids[var_type] = 0
+            return self.ids[var_type]
+        else:
+            exit("Asking for ID that already exists")
+
 def main():
-    get_x_to_y_time_cal_times_UNIT_TEST()
-    pick_day()
+    #get_x_to_y_time_cal_times_UNIT_TEST()
+    #pick_day()
+    DB = utility.ID()
+    for i in range (10):
+        p = Patient()
+        print(p.id)
+    print(p.id)
+    for i in range (10):
+        p = Patient()
+        a = Appointment(p,10,pendulum.now())
+        print(p.id)
+        print(a.id)
+    print(p.id)
 
 main()

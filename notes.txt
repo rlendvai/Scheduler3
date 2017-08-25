@@ -24,6 +24,30 @@ Slot fill report:
 # time when changed
 # status to which it changed
 
+Each class:
+- stores interesting data about itself in instances
+- has a function to surface each data, as granularly as possible
+- reports only a single item (that's expected to be printed on one line). recipient should not have to unpack.
+
+data > format data > feed to report > assemble report > format report
+
+report format has
+it's own file
+column names (and implied order)
+report shouldn't have to know data type of data coming up, but it should be able to ask for a certain format
+(except time, so it can be formatted all together)
+
+get_flat_data
+[{name} {response},
+{name} {response},
+{name} {response},]
+
+sheet
+get next column_name
+case column name:
+    get name
+case response
+    get response
 
 
 

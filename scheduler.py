@@ -1,5 +1,6 @@
 import copy
 import random
+import pickle
 import pendulum
 import config
 from appointments import Patient, Appointment, AppSlot
@@ -28,7 +29,7 @@ class Updater:
     def report_offers(self):
         for slot in self.filled_slots():
             log_string = slot.appointment.offers_report()
-            LOG.log_event(log_string,'offer_report')
+            LOG.log(log_string, 'offer_report')
 
     # return all filled slots on the schedule (utility function)
     def filled_slots(self):
@@ -45,17 +46,17 @@ class Updater:
                 free_slots.append(slot)
         return free_slots
 
-    #Fill the soonest empty slots on schedule
+    # Send an offer to the most eligible patient for the best slot
     def reschedule(self):
         global T
 
-        LOG.log_event("Reschedule called...")
+        LOG.log("Reschedule called...")
 
         target_slots = self.free_slots()
         next_slot = None
         # For the next available slot in the schedule, starting at the earliest, we'll find someone willing to move to it
         for target_slot in target_slots:
-            LOG.log_event("Trying to fill " + str(target_slot),'appointment_fill')
+            LOG.log("Trying to fill " + str(target_slot), 'appointment_fill')
             #Try to findan appointment slot with someone who's willing to move
             next_slot = self.getNextSlot(target_slot)
             if next_slot is not None:
@@ -72,10 +73,10 @@ class Updater:
         self.schedule.try_move(original_time, free_time)
         return True
 
-    #determine if a patient is eligible for a specific slot
+    # determine if a patient is eligible for a specific slot
     def isPatientEligible(self, slot_with_appt, target_slot):
-        #qualified only if slot is later than the first available slot
-        LOG.log_event("Evaluating eligibility for " + slot_with_appt.appointment.patient.get_name(type="short"), 'eligibility' )
+        # qualified only if slot is later than the first available slot
+        LOG.log("Evaluating eligibility for " + slot_with_appt.appointment.patient.get_name(type="short"), 'eligibility')
 
         eligible = True
         reason = ""
@@ -92,11 +93,10 @@ class Updater:
             reason = "Target slot is not earlier than original."
             eligible = False
 
-
         if not(eligible): reason = "FAILED: " + reason
         else: reason = "OK."
 
-        LOG.log_event("Eligibility check for " + slot_with_appt.appointment.patient.get_name(type="short") + ": " + reason, 'eligibility')
+        LOG.log("Eligibility check for " + slot_with_appt.appointment.patient.get_name(type="short") + ": " + reason, 'eligibility')
 
         return eligible
 
@@ -111,8 +111,8 @@ class Updater:
             if min_offers_received is None or slot.appointment.totalOffersReceived() < min_offers_received:
                 min_offers_received = slot.appointment.totalOffersReceived()
                 candidate_slot = slot
-                LOG.log_event("candidate is " + \
-                                         candidate_slot.appointment.patient.get_name() + \
+                LOG.log("candidate is " + \
+                        candidate_slot.appointment.patient.get_name() + \
                                          " has seen " + str(min_offers_received) + " offers")
         return candidate_slot
 
@@ -145,7 +145,7 @@ class Updater:
             chance = distance_probability[delta]*chance_per_slot/100
             if(random.uniform(1,100) < chance):
                 slot.fill(Appointment(Patient(), slot.length, slot.begin_time))
-                LOG.log_event("Created new appointment", 'appointment_creation')
+                LOG.log("Created new appointment", 'appointment_creation')
                 return True #succeded in finding a slot
             scheduling_attempts += 1
             if scheduling_attempts > max_attempts:
@@ -193,6 +193,7 @@ class Schedule:
                 else:
                     self.cal_times.append((slot_time, AppSlot(slot_time, 0)))
 
+
     def cal_times_printer(self, cal_times):
 
         schedule_entries = []
@@ -224,8 +225,8 @@ class Schedule:
 
         return new_cal_times
 
-    #Will execute a cancellation according to the percent probability assigned.
-    #It decides only whether a cancellation should occure, not which appointment should be cancelled
+    # Will execute a cancellation according to the percent probability assigned.
+    # It decides only whether a cancellation should occure, not which appointment should be cancelled
     def do_daily_cancel(self, percent):
         if random.random() < percent/100:
             self.cancel_rand_appointment()
@@ -245,7 +246,7 @@ class Schedule:
         cal_times = self.get_x_to_y_time_cal_times(cancel_period_start, cancel_period_end, filled_only=True)
         if len(cal_times)>0:
             cal_time_to_cancel = random.choice(cal_times)
-            LOG.log_event("Cancelling " + str(cal_time_to_cancel[1]), type='cancel')
+            LOG.log("Cancelling " + str(cal_time_to_cancel[1]), type='cancel')
             appt_time_to_cancel = cal_time_to_cancel[0]
             self.cancel_appointment(appt_time_to_cancel)
             return appt_time_to_cancel
@@ -275,15 +276,10 @@ class Schedule:
                 return i
         return False
 
-    #get the time of a time in an appointment
-
-    def get_time(self, slot):
-        pass
-
     def move(self, from_time, to_time):
 
         log_string = "Moving " + dict(self.cal_times)[from_time].getName() + " from " + from_time + " to " + to_time
-        LOG.log_event(log_string, type='move_schedule_entry')
+        LOG.log(log_string, type='move_schedule_entry')
         self.fill_appointment(to_time, dict(self.cal_times)[from_time].appointment)
         #self.show()
         self.cancel_appointment(from_time)
@@ -295,11 +291,11 @@ class Schedule:
 
         if(self.fill_appointment(to_time, dict(self.cal_times)[from_time].appointment, force=False)):
             log_string=("Moving " + dict(self.cal_times)[from_time].getName() + " from " + from_time.format("MM/DD HH:mm") + " to " + to_time.format("MM/DD HH:mm"))
-            LOG.log_event(log_string, 'rescheduling')
+            LOG.log(log_string, 'rescheduling')
             self.cancel_appointment(from_time)
         else:
             log_string = ("\nCouldn't move " + dict(self.cal_times)[from_time].getName() + " from " + from_time.format("MM/DD HH:mm") + " to " + to_time.format("MM/DD HH:mm"))
-            LOG.log_event(log_string, 'rescheduling')
+            LOG.log(log_string, 'rescheduling')
 
     # Return True if there is an appointment at the given time. False otherwise.
     def is_filled(self, time):
@@ -317,7 +313,7 @@ def SimRunner(schedule, sim_runs):
     # f.schedule_new()
     schedule.show()
     for i in range (config.sim_runs):
-        LOG.log_event("It's now " + str(T), type='simulator')
+        LOG.log("It's now " + str(T), type='simulator')
         #Is it the beginning of an appointment? If so, let's make a new one, and let's cancel one.
         if(schedule.is_filled(T)):
             schedule.do_daily_cancel(config.overall_cancellation_rate)
@@ -330,7 +326,7 @@ def SimRunner(schedule, sim_runs):
 
 
     offer_maker.report_offers()
-    LOG.log_event("All done!", type='utility')
+    LOG.log("All done!", type='utility')
     #LOG.gprint_log(verbose=True, everything=True)
 
     return True
@@ -344,12 +340,9 @@ def main():
     SIM_RUNS = config.sim_runs
 
     gprinter("", "", "clear") # Clear the sheet screen
-
-
-
     pendulum.set_formatter('alternative')
     S = Schedule(T, config.days, num_slots = config.slots_per_day, duration=config.duration, density_percent=config.density)
     clock = BigBen(S)
-    # This is where the monkey jumps into the water!
     SimRunner(S, SIM_RUNS)
+
 
