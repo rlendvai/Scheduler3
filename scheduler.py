@@ -27,7 +27,8 @@ class Updater:
     # print report of offers made so far
     def report_offers(self):
         for slot in self.filled_slots():
-            print(slot.appointment.offers_report(), sep="")
+            log_string = slot.appointment.offers_report()
+            LOG.log_event(log_string,'offer_report')
 
     # return all filled slots on the schedule (utility function)
     def filled_slots(self):
@@ -293,10 +294,12 @@ class Schedule:
 
 
         if(self.fill_appointment(to_time, dict(self.cal_times)[from_time].appointment, force=False)):
-            print("\nMoving", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to", to_time.format("MM/DD HH:mm"))
+            log_string=("Moving " + dict(self.cal_times)[from_time].getName() + " from " + from_time.format("MM/DD HH:mm") + " to " + to_time.format("MM/DD HH:mm"))
+            LOG.log_event(log_string, 'rescheduling')
             self.cancel_appointment(from_time)
         else:
-            print("\nCouldn't move", dict(self.cal_times)[from_time].getName(), "from", from_time.format("MM/DD HH:mm"), "to",to_time.format("MM/DD HH:mm"))
+            log_string = ("\nCouldn't move " + dict(self.cal_times)[from_time].getName() + " from " + from_time.format("MM/DD HH:mm") + " to " + to_time.format("MM/DD HH:mm"))
+            LOG.log_event(log_string, 'rescheduling')
 
     # Return True if there is an appointment at the given time. False otherwise.
     def is_filled(self, time):
@@ -312,7 +315,7 @@ def SimRunner(schedule, sim_runs):
     time_last_app_created = T
     #for i in range (sim_runs):
     # f.schedule_new()
-    #    schedule.show()
+    schedule.show()
     for i in range (config.sim_runs):
         LOG.log_event("It's now " + str(T), type='simulator')
         #Is it the beginning of an appointment? If so, let's make a new one, and let's cancel one.
@@ -321,14 +324,14 @@ def SimRunner(schedule, sim_runs):
             offer_maker.schedule_new()
             offer_maker.reschedule()
         #print("Not showing schedule")
-        #schedule.show()
+        schedule.show()
         T = T.add(minutes= 10)
 
 
 
     offer_maker.report_offers()
     LOG.log_event("All done!", type='utility')
-    LOG.gprint_log(verbose=True, everything=True)
+    #LOG.gprint_log(verbose=True, everything=True)
 
     return True
 
@@ -339,7 +342,6 @@ def main():
 
     T = pendulum.Pendulum(2017, 8, 1, 9, tzinfo='America/New_York')
     SIM_RUNS = config.sim_runs
-    LOG = Log()
 
     gprinter("", "", "clear") # Clear the sheet screen
 

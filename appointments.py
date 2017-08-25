@@ -2,6 +2,7 @@ import copy
 import random
 import config
 import names
+from printer import Log, LOG
 
 
 class Patient:
@@ -58,11 +59,13 @@ class Appointment:
 
     def seenIt(self, appt_slot):
         counter = 0
-        #print("Asking if", self.patient, "has seen", appt_slot)
+        log_string = ("Asking if " + str(self.patient) + " has seen " + str(appt_slot))
+        LOG.log_event(log_string, 'offer_making')
         for offer in self.offers:
             if offer[0] == appt_slot:
                 counter+=1
-        #print(self.patient, "has been offered", str(appt_slot), counter, "times before...")
+        log_string=(str(self.patient) + "has been offered " + str(appt_slot) + " " + str(counter) + " times before...")
+        LOG.log_event(log_string,'offer_making')
         return counter
 
     def totalOffersReceived(self):
@@ -76,17 +79,16 @@ class Appointment:
         global T, LOG
 
 
-        #self.offers.append([time, True])
 
         log_string = "#" + str(len(self.offers)+1) + ": Trying " + self.patient.get_name(type="short") + " > "
-        #LOG.log_event(log_string, always_show=False, screen_print=False)
+        LOG.log_event(log_string, 'offer_response')
 
         if random.random()<config.chance_patient_accepts_offer/100:
-            LOG.log_event("Offer accepted", 'offer_response')
+            #LOG.log_event("Offer accepted", 'offer_response')
             self.offers.append([copy.deepcopy(apptslot), True])
             return True
         else:
-            LOG.log_event("Offer REFUSED", 'offer_response')
+          #  LOG.log_event("Offer REFUSED", 'offer_response')
             self.offers.append([copy.deepcopy(apptslot), False])
             return False
 
@@ -137,7 +139,6 @@ class AppSlot:
             return "[" + str(self.begin_time).lower() + "(" + str(self.length) + "): " + str(self.appointment) + "]"
         else:
             return "[" + str(self.begin_time).lower() + "(" + str(self.length) + "): <None>]"
-            #return "[" + str(self.begin_time) + "(", self.length, "): <FREE>]"
 
     def fill(self, appointment, force=True):
 

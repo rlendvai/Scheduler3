@@ -54,7 +54,7 @@ def get_credentials():
 
 def gprinter(user_values, range_string, operation = None, insert_column_first=None, insert_column_last=None):
 
-    return
+
 
     credentials = get_credentials()
 
@@ -75,10 +75,9 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
         requests.append(request)
         body = {'requests': requests}
         request_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
-        #pprint(request_response)
+        LOG.log_event(request_response, 'logging')
+
         return
-
-
 
     if operation == "insert":
         requests = []
@@ -94,27 +93,21 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
             requests.append(request)
             body = {'requests': requests}
             insert_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
-            #pprint(insert_response)
-
-
-
-
+            LOG.log_event(insert_response, 'logging')
 
     # The A1 notation of the values to update.
     range_ = range_string
     value_input_option = 'RAW'
     value_range_body = {"values": user_values}
-    #print("trying to google print")
-    #print("lenght of user values is:", len(user_values))
-    for value in user_values:
-        #print(value)
-        pass
+    LOG.log_event("Google printing", 'logging')
+
 
     request = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=range_, valueInputOption=value_input_option, body=value_range_body)
     write_response = request.execute()
 
     # TODO: Change code below to process the `response` dict:
 
+    LOG.log_event(write_response, 'logging')
     #pprint(write_response)
 
 
@@ -126,11 +119,13 @@ class Log:
     def __init__(self):
         self.log_lines = []
         self.log_range = config.log_range
-        self.first_row = config.total_entries + 2
-        self.current_grow = self.first_row
+        self.first_grow = config.total_entries + 2
+        self.current_grow = self.first_grow
         self.schedule_has_been_printed_before = False
 
-    def log_event(self, event_string, type='general', screen_print = False):
+    def log_event(self, event_string, type='general'):
+
+        assert type in config.event_print_types , "Trying to log unknown type."
 
         line={'time' : pendulum.now(), 'event' : event_string, 'type' : type}
         self.log_lines.append(line)
@@ -160,7 +155,7 @@ class Log:
             if not everything and counter == self.num_lines_to_show:
                     break
 
-        print("Printing complete log...")
+        LOG.log_event("Printing complete log...", 'logging')
         g_range = self.log_range
         values = list(reversed(values))
 
@@ -169,22 +164,40 @@ class Log:
 
     def scheduleDisplay(self, entries):
 
-        if self.schedule_has_been_printed_before is False:
-            self.schedule_has_been_printed_before = True
-            operation = None
-            insert_column_first = None
-            insert_column_last = None
-            range = config.schedule_display_range_initial
-        else:
-            just_patients = []
-            for entry in entries:
-                just_patients.append([entry[1]])
-            entries = just_patients
-            operation = "insert"
-            insert_column_first = 1
-            insert_column_last = 1
-            range = config.schedule_display_range_secondary
+        #Printing the schedule the first time is special - we print the times of day. In other iterations we don't.
 
-        gprinter(entries, range, operation = operation, insert_column_first=insert_column_first, insert_column_last=insert_column_last)
-        # Reset the current log printing row to the top, since we just started a new column.
-        self.current_row = self.first_row
+        if 'console' in config.event_print_types['schedule']:
+            print('\n')
+            current_day = None
+            for entry in entries:
+                if current_day != entry[0].split(' ', 1)[0]:
+                    print("------")
+                    current_day = entry[0].split(' ', 1)[0]
+                print(entry[0], entry[1]  )
+            print('\n')
+
+        if 'google' in config.event_print_types['schedule']:
+            if self.schedule_has_been_printed_before is False:
+                self.schedule_has_been_printed_before = True
+                operation = None
+                #Since it's the first column, with the time entries, it's not an insert
+                insert_column_first = None
+                insert_column_last = None
+                range = config.schedule_display_range_initial
+            else:
+                just_patients = []
+                for entry in entries:
+                    just_patients.append([entry[1]])
+                entries = just_patients
+                operation = "insert"
+                insert_column_first = 1
+                insert_column_last = 1
+                range = config.schedule_display_range_secondary
+
+            gprinter(entries, range, operation = operation, insert_column_first=insert_column_first, insert_column_last=insert_column_last)
+            # Reset the current log printing row to the top, since we just started a new column.
+            # We are printing log lines below each day's schedule, this is how we keep track of where the
+            # 'bottom' of the schedule is.
+            self.current_grow = self.first_grow
+
+LOG = Log()

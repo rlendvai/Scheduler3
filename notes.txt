@@ -10,3 +10,4 @@ Slot that was offered
 Offer type
 Offer value
 Offer answer
+Unsubscribes?

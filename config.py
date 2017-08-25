@@ -1,10 +1,10 @@
 #import pendulum
 
 
-sim_runs = 100 #number of times simulator should loop overall
+sim_runs = 3 #number of times simulator should loop overall
 
 days = 5 # number of days of schedule to create
-slots_per_day = 8 # number of appointment slots each day should have
+slots_per_day = 6 # number of appointment slots each day should have
 duration = 30 #duration of appointments
 total_entries = slots_per_day * days
 density = 50 # density of initially created schedule as percent
@@ -39,14 +39,18 @@ for bucket in cancel_buckets:
 #c == console, g == google
 event_print_types = dict(
                 appointment_creation=[],
-                appointment_fill=['console'],
-                cancel=['google'],
+                appointment_fill=[],
+                cancel=[],
                 general=[],
-                move_schedule_entry = [],
                 eligibility = [],
+                logging = [],
+                offer_making = [],
+                offer_report = [],
                 offer_response = [],
-                scheduling=['console'],
+                rescheduling = [],
+                scheduling=[],
+                schedule = [],
                 simulator = [],
-                utility = ['console']
+                utility = []
                 )
-pass
+
