@@ -11,3 +11,23 @@ Offer type
 Offer value
 Offer answer
 Unsubscribes?
+Speed at which offer was filled, which changes as we open min time to cancel window and increase number
+ of people texted at same time
+
+a patient experience report
+    # each patient's name
+    # communication they received, in order
+    # response to each (refused, OK, etc)
+
+Slot fill report:
+# slot time
+# time when changed
+# status to which it changed
+
+
+
+
+#TODO
+# make bigben class for time uniformity
+# Create patient and slot IDs
+# Add true life cycle
