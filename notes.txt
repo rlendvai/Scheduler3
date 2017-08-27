@@ -51,7 +51,14 @@ case response
 
 
 
+
 #TODO
 # make bigben class for time uniformity
-# Create patient and slot IDs
 # Add true life cycle
+
+bben takes functions that call patients for responses. each call is prescribed to
+occur at a certain time, or interval
+bb makes sure that the calls go out at the proper time by iterating over all
+calls every minute, and executing the ones that meet their time condition
+when a patient is called.
+

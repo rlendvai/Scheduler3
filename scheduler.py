@@ -3,7 +3,7 @@ import random
 import pickle
 import pendulum
 import config
-from appointments import Patient, Appointment, AppSlot
+from appointments import *
 from printer import *
 from printer import gprinter
 
@@ -66,11 +66,9 @@ class Updater:
         if slot_to_reschedule is None or target_slot is None:
             return False
 
-        free_time = target_slot.begin_time
-        original_time = slot_to_reschedule.begin_time
-        offer=Offer(slot_to_reschedule, copy.deepcopy(target_slot))
+        offer=Offer(copy.deepcopy(slot_to_reschedule), copy.deepcopy(target_slot))
         self.sent_offers.append(offer)
-        if (slot_to_reschedule.appointment.try_change(target_slot)):
+        if (slot_to_reschedule.appointment.try_change(offer)):
             self.schedule.move_appointment(from_slot=slot_to_reschedule, to_slot=target_slot)
 
         #self.schedule.try_move(original_time, free_time)
@@ -147,7 +145,7 @@ class Updater:
             delta = T.diff(slot.begin_time).in_days()
             chance = distance_probability[delta]*chance_per_slot/100
             if(random.uniform(1,100) < chance):
-                slot.fill(Appointment(Patient(), slot.length, slot.begin_time))
+                slot.fill(Appointment(Patient(), slot.duration, slot.begin_time))
                 LOG.log("Created new appointment", 'appointment_creation')
                 return True #succeded in finding a slot
             scheduling_attempts += 1
@@ -159,23 +157,28 @@ class Updater:
         return False # We ran out of slots
 
 
-
-
-
-
-
 class Offer:
-    def __init__(self, original_appt, proposed_appt_slot, time_sent = None):
-        self.original_appt = original_appt
+    def __init__(self, original_appt_slot, proposed_appt_slot, time_sent = None):
+        self.original_appt_slot = original_appt_slot
         self.proposed_slot = proposed_appt_slot
         self.time_sent = time_sent
 
     def __str__(self):
-        string = str(self.original_appt) + " ==> "
+        string = str(self.original_appt_slot) + " ==> "
         string += self.proposed_slot.__str__()
-        #+ " ==> "
-        #+ print(self.proposed_slot)
         return string
+
+    def unpack(self):
+        def prepend_word_to_keys(new_name, old_dict):
+            keys = old_dict.copy().keys()
+            for key in keys:
+                old_dict[new_name+' ' + key] = old_dict.pop(key)
+            return old_dict
+
+        return prepend_word_to_keys('proposed', self.proposed_slot.unpack())
+
+
+        #original_appt = self.original_appt.unpack
 
 
 
@@ -192,9 +195,9 @@ class Schedule:
                 slot_time = self.start_time.add(days=i)
                 slot_time = slot_time.add(minutes=(n * duration))
                 if random.randrange(1,100) <= density_percent:
-                    self.cal_times.append((slot_time, AppSlot(slot_time, duration)))
+                    self.cal_times.append((slot_time, AppSlot(slot_time, duration, filled=True)))
                 else:
-                    self.cal_times.append((slot_time, AppSlot(slot_time, 0)))
+                    self.cal_times.append((slot_time, AppSlot(slot_time, duration, filled=False)))
 
 
     def cal_times_printer(self, cal_times):
@@ -266,6 +269,7 @@ class Schedule:
 
 
     def move_appointment(self, from_slot: AppSlot, to_slot: AppSlot):
+        LOG.log('Moving from ' + str(from_slot) + " to " + str(to_slot), 'moving')
         to_slot.fill(from_slot.appointment)
         from_slot.unfill()
 
@@ -280,20 +284,19 @@ class Schedule:
 def SimRunner(schedule, sim_runs):
     global T
     offer_maker = Updater(schedule)
-    time_last_app_created = T
-    #for i in range (sim_runs):
-    # f.schedule_new()
     schedule.show()
     for i in range (config.sim_runs):
         LOG.log("It's now " + str(T), type='simulator')
         #Is it the beginning of an appointment? If so, let's make a new one, and let's cancel one.
         if(schedule.is_filled(T)):
             schedule.do_daily_cancel(config.overall_cancellation_rate)
-            offer_maker.schedule_new()
-            offer_maker.reschedule()
+            #offer_maker.schedule_new()
+            for i in range (5):
+                offer_maker.reschedule()
+                schedule.show()
+
         #print("Not showing schedule")
-        schedule.show()
-        T = T.add(minutes= 10)
+        T = T.add(minutes = 5)
 
 
 
@@ -316,5 +319,6 @@ def main():
     S = Schedule(T, config.days, num_slots = config.slots_per_day, duration=config.duration, density_percent=config.density)
     clock = BigBen(S)
     SimRunner(S, SIM_RUNS)
+
 
 

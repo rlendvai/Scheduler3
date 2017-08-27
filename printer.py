@@ -71,8 +71,25 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
                             "fields": "userEnteredValue"
                              }
                         }
+        request1 = {"updateCells": {
+                        "range": {
+                       "sheetId": 73388798
+                    },
+                    "fields": "userEnteredValue"
+                    }
+                   }
+        request2 = {"updateCells": {
+            "range": {
+                "sheetId": 798663263
+            },
+            "fields": "userEnteredValue"
+        }
+        }
 
         requests.append(request)
+        requests.append(request1)
+        requests.append(request2)
+
         body = {'requests': requests}
         request_response = service.spreadsheets().batchUpdate(spreadsheetId=spreadsheetId, body=body).execute()
         LOG.log(request_response, 'logging')
@@ -105,7 +122,6 @@ def gprinter(user_values, range_string, operation = None, insert_column_first=No
     request = service.spreadsheets().values().update(spreadsheetId=spreadsheetId, range=range_, valueInputOption=value_input_option, body=value_range_body)
     write_response = request.execute()
 
-    # TODO: Change code below to process the `response` dict:
 
     LOG.log(write_response, 'logging')
     #pprint(write_response)
@@ -173,6 +189,7 @@ class Log:
                 if current_day != entry[0].split(' ', 1)[0]:
                     print("------")
                     current_day = entry[0].split(' ', 1)[0]
+
                 print(entry[0], entry[1]  )
             print('\n')
 

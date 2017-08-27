@@ -1,11 +1,10 @@
 import copy
+import os
 import random
 import config
 import names
-from utility import ID
 from printer import Log, LOG
 
-id_db = ID()
 class Patient:
     def __init__(self):
         self.first_name = names.get_first_name()
@@ -21,7 +20,6 @@ class Patient:
 
     def __str__(self):
         return self.get_name()
-
 
 class Appointment:
     def __init__(self, patient, duration, time):
@@ -53,7 +51,7 @@ class Appointment:
         log_string = ("Asking if " + str(self.patient) + " has seen " + str(appt_slot))
         LOG.log(log_string, 'offer_making')
         for offer in self.offers:
-            if offer[0] == appt_slot:
+            if offer[0].proposed_slot == appt_slot:
                 counter+=1
         log_string=(str(self.patient) + "has been offered " + str(appt_slot) + " " + str(counter) + " times before...")
         LOG.log(log_string, 'offer_making')
@@ -65,39 +63,69 @@ class Appointment:
     def change_time(self,time):
         self.time = time
 
-    def try_change(self, apptslot):
+    def try_change(self, offer):
 
         log_string = "#" + str(len(self.offers)+1) + ": Trying " + self.patient.get_name(type="short") + " > "
         LOG.log(log_string, 'offer_response')
 
         if random.random()<config.chance_patient_accepts_offer/100:
             LOG.log("Offer accepted", 'offer_response')
-            self.offers.append([copy.deepcopy(apptslot), True])
+            self.offers.append([offer, True])
             return True
         else:
             LOG.log("Offer REFUSED", 'offer_response')
-            self.offers.append([copy.deepcopy(apptslot), False])
+            self.offers.append([offer, False])
             return False
 
     def __str__(self):
         return "(" + str(self.time).lower() + " " + str(self.patient.get_name(type="short") + ")")
 
+    def unpack_pivot(self, pivot='offers'):
+        if pivot == 'offers':
+            offer_data = []
+            # Map True/False to Accept/Reject, for reporting
+            answer = {True: 'Accept', False: 'Reject'}
+            for offer in self.offers:
+                local_appt_attributes = {
+                                'id': self.id,
+                                'patient': self.patient.get_name(),
+                                'duration': self.duration,
+                                'time': str(self.time),
+                                'offer_answer' : answer[offer[1]]
+                                }
+                offer_attributes = offer[0].unpack()
+                all_appt_attributes = {**local_appt_attributes, **offer_attributes}
+                offer_data.append(all_appt_attributes)
+        return offer_data
 
 class AppSlot:
-    def __init__(self, begin_time, length):
+    def __init__(self, begin_time, duration, filled):
         self.appointment = None
         self.type = "General"
         self.begin_time = begin_time
-        self.length = length
+        self.duration = duration
         self.id = id_db.get_new_ID(self)
 
-        if length > 0:
-            self.fill(Appointment(Patient(), length, begin_time))
+        if filled:
+            self.fill(Appointment(Patient(), duration, begin_time))
+
+    def unpack(self):
+        if self.appointment is None:
+            status = 'FREE'
+        else:
+            status = 'Filled'
+
+        return {
+                'slot_status': status,
+                'slot_type': self.type,
+                'slot_begin_time' : str(self.begin_time),
+                'duration': str(self.duration)
+                }
 
     def __eq__(self, other):
         if(self.begin_time == other.begin_time and \
                 self.type == other.type and \
-                self.length == other.length):
+                self.duration == other.duration):
             return True
         else:
             False
@@ -121,12 +149,11 @@ class AppSlot:
 
         return self.begin_time.diff(appt_slot.begin_time).in_hours()
 
-
     def __str__(self):
         if self.appointment != None:
-            return "[" + str(self.begin_time).lower() + "(" + str(self.length) + "): " + str(self.appointment) + "]"
+            return "[" + str(self.begin_time).lower() + "(" + str(self.duration) + "): " + str(self.appointment) + "]"
         else:
-            return "[" + str(self.begin_time).lower() + "(" + str(self.length) + "): <None>]"
+            return "[" + str(self.begin_time).lower() + "(" + str(self.duration) + "): <None>]"
 
     def fill(self, appointment, force=True):
 
@@ -142,7 +169,7 @@ class AppSlot:
             else:
                 return False
         else:
-            sys.exit("You can not fill an already filled slot!")
+            exit("You can not fill an already filled slot!")
 
     def unfill(self):
         self.appointment = None
@@ -180,4 +207,37 @@ class AppSlot:
 
         # def filled_slots(self):
 
+class ID:
+    def __init__(self):
+        self.ids = {}
+        self.patients = []
+        self.appointments = []
+        self.app_slots = []
+
+    def get_new_ID(self, var):
+        var_type = type(var)
+        if var_type in self.ids:
+            self.ids[var_type] += 1
+        else:
+            self.ids[var_type] = 0
+
+        if var_type == Patient:
+            self.patients.append(var)
+        elif var_type == Appointment:
+            self.appointments.append(var)
+        elif var_type == AppSlot:
+            self.app_slots.append(var)
+
+        return self.ids[var_type]
+
+    def get_patients(self):
+        return self.patients
+
+    def get_appointments(self):
+        return self.appointments
+
+    def get_app_slots(self):
+        return self.app_slots
+
+id_db = ID()
 
